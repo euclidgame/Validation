@@ -1,5 +1,7 @@
 package Validation.gui;
 
+import Validation.result.ResultDumper;
+import Validation.result.ResultHolder;
 import Validation.util.Pair;
 import Validation.validate.Validator;
 
@@ -15,9 +17,13 @@ import java.awt.event.ActionEvent;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 
 public class MyFrame extends JFrame {
@@ -33,8 +39,16 @@ public class MyFrame extends JFrame {
     DefaultStyledDocument document = new DefaultStyledDocument(), document1 = new DefaultStyledDocument();
     JTextPane pane = new JTextPane(document), pane1 = new JTextPane(document1);
 
-    public MyFrame(Validator validator) {
+    private final File inequal;
+
+    List<String[]> equalResult = new ArrayList<>();
+    List<String[]> inequalResult = new ArrayList<>();
+
+    public MyFrame(Validator validator, File inequal) {
         this.validator = validator;
+        this.inequal = inequal;
+        initializeInequal();
+        validator.setInequalPairs(inequalResult);
         setTitle("Programs To Validate");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setBounds(100, 100, 1000, 800);
@@ -82,6 +96,19 @@ public class MyFrame extends JFrame {
         updateScreen();
     }
 
+    private void initializeInequal() {
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(inequal), StandardCharsets.UTF_8));
+            String str;
+            while ((str = reader.readLine()) != null) {
+                String[] temp = str.split(",");
+                inequalResult.add(temp);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private void updateScreen() {
         currentPair = validator.getNextProgramPair();
         if (currentPair != null) {
@@ -126,13 +153,45 @@ public class MyFrame extends JFrame {
             remove(buttonPanel);
             repaint();
             System.out.println(validator.getFinalResult().disjointLists());
+            output();
         }
     }
 
-    String getLastThreeDir(String path) {
+    private void output() {
+        File outputDir = new File("output");
+        String[] head = new String[]{"file1", "file2"};
+        equalResult.add(head);
+        if (!outputDir.exists()) {
+            outputDir.mkdir();
+        }
+        processResult(validator.getFinalResult(), equalResult);
+        try {
+            ResultDumper.dump("output/equal.csv", equalResult);
+            ResultDumper.dump("output/inequal.csv", inequalResult);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void processResult(ResultHolder<File> result, List<String[]> equal) {
+        result.elements().forEach(p -> {
+            File rep = result.getRepresentativeOf(p);
+            int order = result.getOrderOf(p);
+            result.elements().forEach(p1 -> {
+                if (result.getOrderOf(p1) > order) {
+                    File rep1 = result.getRepresentativeOf(p1);
+                    String[] temp = new String[]{getLastThreeDir(p.getAbsolutePath()), getLastThreeDir(p1.getAbsolutePath())};
+                    if (rep.equals(rep1)) {
+                        equal.add(temp);
+                    }
+                }
+            });
+        });
+    }
+
+    public static String getLastThreeDir(String path) {
         String[] dirs = path.split("/");
         int tot = dirs.length;
         return dirs[tot - 3] + "/" + dirs[tot - 2] + "/" + dirs[tot - 1];
     }
-
 }

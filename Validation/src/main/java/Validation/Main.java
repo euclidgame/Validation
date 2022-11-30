@@ -17,11 +17,10 @@ public class Main {
     public static void main(String[] args) {
         ResultHolder<File> originalResult = new ResultHolder<>();
         File inputDir = new File(args[0]);
-        File outputDir = new File(args[1]);
         File inequal = initialize(originalResult, inputDir);
         Validator validator = new Validator(originalResult);
         EventQueue.invokeLater(() -> {
-            MyFrame frame = new MyFrame(validator);
+            MyFrame frame = new MyFrame(validator, inequal);
             frame.setVisible(true);
         });
     }
@@ -56,7 +55,7 @@ public class Main {
                 }
             }
             else if (file.equals("inequal.csv")) {
-                inequal = new File(inequal, file);
+                inequal = new File(inputDir, file);
             }
         }
         return inequal;
